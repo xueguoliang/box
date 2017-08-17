@@ -14,9 +14,11 @@
 class box_event;
 class box_event_sock;
 class box_event_timer;
+class box_event_buffer;
 
 typedef void(*box_read_callback)(box_event_sock*);
 typedef void(*box_write_callback)(box_event_sock*);
+typedef void(*box_buffer_callback)(box_event_buffer*);
 typedef void(*box_timer_callback)(box_event_timer*);
 
 void box_set_nonblock(int fd);

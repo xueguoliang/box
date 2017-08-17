@@ -4,14 +4,21 @@
 
 box b;
 
-void read_cbk(box_event_sock* ev)
+void err_cbk(box_event_buffer* ev)
 {
-    char buf[1024];
-    if(read(ev->fd, buf, sizeof(buf)) <= 0)
-    {
-        ev->close(); // release self
-    }
-    printf("buf=%s\n", buf);
+    printf("error callback\n");
+}
+/*recv header, recv data*/
+void read_cbk(box_event_buffer* ev)
+{
+    char buf[5];
+    buf[4] = 0;
+    ev->read(buf, 4);
+    printf("%s\n", buf);
+
+    uint32_t header = *(uint32_t*)buf;
+    header = ntohs(header);
+    ev->watermark = header;
 }
 
 void accept_cbk(box_event_sock* ev)
@@ -24,7 +31,8 @@ void accept_cbk(box_event_sock* ev)
             break;
 
         box_set_nonblock(newfd);
-        b.add_socket(newfd, read_cbk);
+      //  b.add_socket(newfd, read_cbk);
+        b.add_buffer(newfd, read_cbk, err_cbk, 4);
     }
 }
 
@@ -46,7 +54,6 @@ int main()
 
     int server = box_create_server(9988);
     b.add_socket(server, accept_cbk);
-
 
     b.run();
     return 0;

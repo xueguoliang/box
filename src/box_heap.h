@@ -1,14 +1,15 @@
+#ifndef __BOX_HEAP_H__
+#define __BOX_HEAP_H__
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 
-
 typedef struct heap_t
 {
     // int* data;
-    void** data; // [box_event_timer*, box_event_timer*]
+    void** data; // [box_event_timer*, box_event_timer*, ...]
     int data_cap;  // 申请的空间
     int data_use;  // 使用的空间
     int (*cmp)(void* ptr1, void* ptr2);
@@ -156,22 +157,4 @@ static inline void heap_del(heap_t* heap, int index)
     }
 }
 
-#if 0
-int main()
-{
-    heap_t* heap = heap_create();
-    heap_add(heap, 990);
-    heap_add(heap, 8);
-    heap_add(heap, 111);
-    heap_add(heap, 200);
-    heap_add(heap, 7);
-    heap_add(heap, 99);
-    heap_add(heap, 10001);
-
-    int i;
-    for(i=0; i<7; ++i)
-        heap_del(heap, 0);
-
-    heap_dump(heap, 7);
-}
 #endif

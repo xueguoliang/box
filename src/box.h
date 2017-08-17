@@ -4,6 +4,7 @@
 class box_event;
 class box_event_sock;
 class box_event_timer;
+class box_event_buffer;
 class box_thread;
 
 #include <stdio.h>
@@ -34,10 +35,12 @@ public:
     void add_socket(int fd, box_read_callback rcbk, box_write_callback wcbk = NULL);
     // 把socket加入到epoll
     void epoll_add(box_event_sock* ev);
+    void epoll_add(box_event_buffer* ev);
     // 监听socket
     void run();
     //
     void add_timer(int timeout, box_timer_callback cbk, void* ptr = NULL);
+    void add_buffer(int fd, box_buffer_callback cbk,box_buffer_callback err, int watermark);
 
     // 一些辅助函数
     void lock();

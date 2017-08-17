@@ -53,8 +53,12 @@ void box::run()
         {
             for(int i=0;i <ret; ++i)
             {
-                box_event_sock*ev = (box_event_sock*)evs[i].data.ptr;
-                ev->cbk_events = evs[i].events;
+                box_event* ev = (box_event*)evs[i].data.ptr;
+                if(ev->type == box_event_type_sock)
+                {
+                    box_event_sock*ev = (box_event_sock*)evs[i].data.ptr;
+                    ev->cbk_events = evs[i].events;
+                }
                 add_event(ev);
             }
         }
@@ -72,6 +76,12 @@ void box::add_timer(int timeout, box_timer_callback cbk, void *ptr)
     lock();
     heap_add(timers, ev);
     unlock();
+}
+
+void box::add_buffer(int fd, box_buffer_callback cbk, box_buffer_callback err,int watermark)
+{
+    box_event_buffer* ev = new box_event_buffer(fd, cbk,err, watermark);
+    epoll_add(ev);
 }
 
 void box::lock()
@@ -138,6 +148,20 @@ void box::epoll_add(box_event_sock *ev)
     struct epoll_event epollev;
     epollev.data.ptr = ev;
     epollev.events = ev->events | EPOLLONESHOT;
+    if(epoll_ctl(epollfd, EPOLL_CTL_MOD, ev->fd, &epollev) != 0)
+    {
+        epoll_ctl(epollfd, EPOLL_CTL_ADD, ev->fd, &epollev);
+    }
+}
+
+void box::epoll_add(box_event_buffer *ev)
+{
+    struct epoll_event epollev;
+    epollev.data.ptr = ev;
+    epollev.events = EPOLLIN|EPOLLONESHOT;
+    if(ev->write_buf.size() > 0)
+        epollev.events |= EPOLLOUT;
+
     if(epoll_ctl(epollfd, EPOLL_CTL_MOD, ev->fd, &epollev) != 0)
     {
         epoll_ctl(epollfd, EPOLL_CTL_ADD, ev->fd, &epollev);

@@ -1,6 +1,7 @@
 #include "box_event.h"
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <string.h>
 box_event::box_event(int type):type(type)
 {
 
@@ -57,4 +58,28 @@ box_event_timer::box_event_timer(int timeout, box_timer_callback cbk, void *ptr)
     ptr(ptr)
 {
     this->expire = box_now() + timeout;
+}
+
+box_event_buffer::box_event_buffer(int fd,
+                                   box_buffer_callback cbk,
+                                   box_buffer_callback err,
+                                   int watermark):
+    box_event(box_event_type_buffer),
+    fd(fd),
+    cbk(cbk),
+    err(err),
+    watermark(watermark)
+{
+
+}
+
+void box_event_buffer::read(char *buf, size_t size)
+{
+    memcpy(buf, this->read_buf.data(), size);
+    this->read_buf.erase(this->read_buf.begin(), this->read_buf.begin()+size);
+}
+
+void box_event_buffer::write(char *buf, size_t size)
+{
+    copy(buf, buf+size, back_inserter(this->write_buf));
 }
