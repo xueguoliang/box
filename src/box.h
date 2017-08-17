@@ -16,19 +16,30 @@ class box_thread;
 #include <stdlib.h>
 
 #include "box_util.h"
+#include "box_heap.h"
 using namespace std;
 
-
-
+/*
+ * 事件监控类，监控所有的socket，如果有事件,将事件加入到消息队列 
+ * */
 class box
 {
 public:
     box();
 
+    // 业务函数
+    // 初始化环境
     void init(int thread_count);
+    // 把socket加入到epoll
     void add_socket(int fd, box_read_callback rcbk, box_write_callback wcbk = NULL);
+    // 把socket加入到epoll
+    void epoll_add(box_event_sock* ev);
+    // 监听socket
     void run();
+    //
+    void add_timer(int timeout, box_timer_callback cbk, void* ptr = NULL);
 
+    // 一些辅助函数
     void lock();
     void unlock();
 
@@ -36,8 +47,7 @@ public:
     box_event* get_event(); // called by thread
 
     void wait_event();
-
-    void epoll_add(box_event_sock* ev);
+    uint64_t get_wait_time();
 
 private:
     int epollfd;
@@ -46,6 +56,8 @@ private:
 
     list<box_thread*> threads;
     list<box_event*> evs;
+
+    heap_t* timers;
 };
 
 class box_autolock

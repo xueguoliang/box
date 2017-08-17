@@ -5,6 +5,7 @@
 #define box_event_type_sock 1
 #define box_event_type_timer 2
 
+// 封装一个event，event可能是socket或者是定时器
 class box_event
 {
 public:
@@ -34,6 +35,15 @@ public:
 };
 
 class box_event_timer: public box_event
-{};
+{
+public:
+    box_event_timer(int timeout, box_timer_callback cbk, void* ptr);
+
+public:
+    uint64_t expire;  // shi ke
+    int timeout;
+    box_timer_callback cbk;
+    void* ptr;
+};
 
 #endif // BOX_EVENT_H

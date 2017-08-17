@@ -4,6 +4,7 @@
 #include <pthread.h>
 class box;
 
+// 封装线程
 class box_thread
 {
 public:

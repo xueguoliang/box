@@ -36,6 +36,12 @@ void box_thread::run()
                     delete sockev;
                 }
             }
+            else if(ev->type == box_event_type_timer)
+            {
+                box_event_timer* timerev = (box_event_timer*)ev;
+                timerev->cbk(timerev);
+                delete timerev;
+            }
         }
     }
 }

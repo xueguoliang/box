@@ -27,3 +27,10 @@ void box_set_nonblock(int fd)
     flags |= O_NONBLOCK;
     fcntl(fd, F_SETFL, flags);
 }
+
+uint64_t box_now()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec*1000 + tv.tv_usec/1000;
+}

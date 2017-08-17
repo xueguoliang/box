@@ -28,14 +28,25 @@ void accept_cbk(box_event_sock* ev)
     }
 }
 
+void timeout2000(box_event_timer*)
+{
+    printf("timeout 2000\n");
+}
+void timeout1000(box_event_timer*)
+{
+    printf("timeout 1000\n");
+}
+void timeout5000(box_event_timer*)
+{
+    printf("timeout 5000\n");
+}
 int main()
 {
-
     b.init(4);
 
     int server = box_create_server(9988);
-
     b.add_socket(server, accept_cbk);
+
 
     b.run();
     return 0;

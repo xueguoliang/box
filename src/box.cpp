@@ -2,6 +2,13 @@
 #include "box_event.h"
 #include "box_thread.h"
 
+int box_timer_cmp(void* ptr1, void* ptr2)
+{
+    box_event_timer* timer1 = (box_event_timer*)ptr1;
+    box_event_timer* timer2 = (box_event_timer*)ptr2;
+    return timer1->expire - timer2->expire;
+}
+
 box::box()
 {
 
@@ -10,6 +17,8 @@ box::box()
 void box::init(int thread_count)
 {
     this->epollfd = epoll_create(1024);
+
+    this->timers = heap_create(box_timer_cmp);
 
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -36,7 +45,10 @@ void box::run()
     struct epoll_event evs[8];
     while(1)
     {
-        int ret = epoll_wait(this->epollfd, evs, 8, 5000);
+        lock();
+        uint64_t time_wait = get_wait_time();
+        unlock();
+        int ret = epoll_wait(this->epollfd, evs, 8, time_wait);
         if(ret > 0)
         {
             for(int i=0;i <ret; ++i)
@@ -52,6 +64,14 @@ void box::run()
             exit(1);
         }
     }
+}
+
+void box::add_timer(int timeout, box_timer_callback cbk, void *ptr)
+{
+    box_event_timer* ev = new box_event_timer(timeout, cbk, ptr);
+    lock();
+    heap_add(timers, ev);
+    unlock();
 }
 
 void box::lock()
@@ -90,6 +110,27 @@ box_event *box::get_event()
 void box::wait_event()
 {
     sem_wait(&sem);
+}
+
+uint64_t box::get_wait_time()
+{
+    uint64_t now = box_now();
+    while(timers->data_use > 0)
+    {
+        box_event_timer* timer =  (box_event_timer*)this->timers->data[0];
+        if(timer->expire < now)
+        {
+         //   timer->cbk(timer);
+            add_event(timer);
+            heap_del(timers, 0);
+        }
+        else
+        {
+            return timer->expire - now;
+        }
+    }
+
+    return 5000;
 }
 
 void box::epoll_add(box_event_sock *ev)

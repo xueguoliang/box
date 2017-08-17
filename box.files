@@ -8,3 +8,4 @@ test/client.cpp
 test/server.cpp
 src/box_util.h
 src/box_util.cpp
+src/box_heap.h

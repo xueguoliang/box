@@ -49,3 +49,12 @@ void box_event_sock::close()
         fd = -1;
     }
 }
+
+box_event_timer::box_event_timer(int timeout, box_timer_callback cbk, void *ptr):
+    box_event(box_event_type_timer),
+    timeout(timeout),
+    cbk(cbk),
+    ptr(ptr)
+{
+    this->expire = box_now() + timeout;
+}
