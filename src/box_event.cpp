@@ -4,7 +4,7 @@
 #include <string.h>
 box_event::box_event(int type):type(type)
 {
-
+    ref = 1;
 }
 
 box_event_sock::box_event_sock(int fd) :
@@ -12,7 +12,6 @@ box_event_sock::box_event_sock(int fd) :
 {
     rcbk = NULL;
     wcbk = NULL;
-    ref = 1;
 }
 
 void box_event_sock::set_callback(box_read_callback r, box_write_callback w)
@@ -31,12 +30,12 @@ void box_event_sock::set_callback(box_read_callback r, box_write_callback w)
     }
 }
 
-void box_event_sock::add_ref()
+void box_event::add_ref()
 {
     ref++;
 }
 
-void box_event_sock::del_ref()
+void box_event::del_ref()
 {
     ref--;
 }
@@ -44,18 +43,16 @@ void box_event_sock::del_ref()
 void box_event_sock::close()
 {
     del_ref();
-    if(ref == 0)
-    {
-        ::close(fd);
-        fd = -1;
-    }
+
+    ::close(fd);
+    fd = -1;
+
 }
 
 box_event_timer::box_event_timer(int timeout, box_timer_callback cbk, void *ptr):
     box_event(box_event_type_timer),
     timeout(timeout),
-    cbk(cbk),
-    ptr(ptr)
+    cbk(cbk)
 {
     this->expire = box_now() + timeout;
 }
@@ -82,4 +79,11 @@ void box_event_buffer::read(char *buf, size_t size)
 void box_event_buffer::write(char *buf, size_t size)
 {
     copy(buf, buf+size, back_inserter(this->write_buf));
+}
+
+void box_event_buffer::close()
+{
+    del_ref();
+    ::close(fd);
+    fd = -1;
 }

@@ -1,52 +1,125 @@
 #include "box.h"
 #include "box_util.h"
 #include "box_event.h"
+#include "cJSON.h"
+#include <string>
+#include <map>
+using namespace std;
+
+typedef struct user_t
+{
+    string ip;
+    box_event_buffer* bufev;
+} user_t;
+
+map<string, user_t*> users;
 
 box b;
 
-void err_cbk(box_event_buffer* ev)
+void err_cbk(box_event_buffer* bufev)
 {
-    printf("error callback\n");
-}
-/*recv header, recv data*/
-void read_cbk(box_event_buffer* ev)
-{
-    char buf[5];
-    buf[4] = 0;
-    ev->read(buf, 4);
-    printf("%s\n", buf);
-
-    uint32_t header = *(uint32_t*)buf;
-    header = ntohs(header);
-    ev->watermark = header;
+    bufev->close();
 }
 
-void accept_cbk(box_event_sock* ev)
+void packet_ready(box_event_buffer* bufev)
 {
-    printf("some one connect\n");
-    while(1)
+    user_t* user = (user_t*)bufev->ptr;
+
+    char* buf = (char*)alloca(bufev->watermark+1);
+    buf[bufev->watermark] = 0;
+    bufev->read(buf, bufev->watermark);
+
+    /*
+     *  {
+     *      ip: ip
+     *      msg: msg
+     *  }
+    */
+
+    cJSON* root = cJSON_Parse(buf);
+    string ip = cJSON_GetObjectItem(root, "ip")->valuestring;
+    string msg = cJSON_GetObjectItem(root, "msg")->valuestring;
+    cJSON_Delete(root);
+
+    user_t* dst;
     {
-        int newfd = accept(ev->fd, NULL, NULL);
-        if(newfd < 0)
-            break;
+        box_autolock lock(&b);
+        if(users.find(ip) == users.end())
+        {
+            return;
+        }
+        dst = users[ip];
+        dst->bufev->add_ref();
+    }
 
-        box_set_nonblock(newfd);
-      //  b.add_socket(newfd, read_cbk);
-        b.add_buffer(newfd, read_cbk, err_cbk, 4);
+    root = cJSON_CreateObject();
+    /*
+        {
+            ip: ip, // from
+            msg: msg
+         }
+    */
+    cJSON_AddStringToObject(root, "ip", user->ip.c_str());
+    cJSON_AddStringToObject(root, "msg", msg.c_str());
+    char* json = cJSON_Print(root);
+    cJSON_Delete(root);
+
+    uint32_t header = strlen(json);
+    header = htons(header);
+    dst->bufev->write((char*)&header, 4);
+    dst->bufev->write(json, strlen(json));
+    free(json);
+
+    box_autolock lock(&b);
+    dst->bufev->del_ref();
+    if(dst->bufev->ref == 0)
+    {
+        delete dst->bufev;
+        users.erase(users.find(dst->ip));
+        delete dst;
     }
 }
 
-void timeout2000(box_event_timer*)
+void header_ready(box_event_buffer* bufev)
 {
-    printf("timeout 2000\n");
+    uint32_t header;
+    bufev->read((char*)&header, 4);
+
+    header = ntohl(header);
+
+    bufev->cbk = packet_ready;
+    bufev->watermark = header;
 }
-void timeout1000(box_event_timer*)
+
+
+void accept_cbk(box_event_sock* sock)
 {
-    printf("timeout 1000\n");
-}
-void timeout5000(box_event_timer*)
-{
-    printf("timeout 5000\n");
+    while(1)
+    {
+        struct sockaddr_in addr;
+        socklen_t len =sizeof(addr);
+        int newfd = accept(sock->fd, (struct sockaddr*)&addr, &len);
+        if(newfd < 0)
+            break;
+
+        box_event_buffer* ev =
+                b.add_buffer(newfd, header_ready, err_cbk, 4);
+
+        user_t* user = new user_t;
+        user->bufev = ev;
+        user->ip = box_getip(&addr.sin_addr);
+
+        b.lock();
+        users[user->ip] = user;
+        b.unlock();
+
+        ev->ptr = user;
+    }
+
+    if(errno == EAGAIN)
+        return;
+
+    exit(1);
 }
 int main()
 {

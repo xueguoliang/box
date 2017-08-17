@@ -1,4 +1,5 @@
 #include "box_util.h"
+#include <string.h>
 
 
 int box_create_server(uint16_t port, const char *ip)
@@ -33,4 +34,12 @@ uint64_t box_now()
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec*1000 + tv.tv_usec/1000;
+}
+
+string box_getip(in_addr *addr)
+{
+    char ip[128];
+    memset(ip, 0, sizeof(ip));
+    inet_ntop(AF_INET, addr, ip, sizeof(ip));
+    return string(ip);
 }

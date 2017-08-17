@@ -40,7 +40,7 @@ public:
     void run();
     //
     void add_timer(int timeout, box_timer_callback cbk, void* ptr = NULL);
-    void add_buffer(int fd, box_buffer_callback cbk,box_buffer_callback err, int watermark);
+    box_event_buffer* add_buffer(int fd, box_buffer_callback cbk,box_buffer_callback err, int watermark);
 
     // 一些辅助函数
     void lock();

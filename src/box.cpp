@@ -78,10 +78,11 @@ void box::add_timer(int timeout, box_timer_callback cbk, void *ptr)
     unlock();
 }
 
-void box::add_buffer(int fd, box_buffer_callback cbk, box_buffer_callback err,int watermark)
+box_event_buffer* box::add_buffer(int fd, box_buffer_callback cbk, box_buffer_callback err,int watermark)
 {
     box_event_buffer* ev = new box_event_buffer(fd, cbk,err, watermark);
     epoll_add(ev);
+    return ev;
 }
 
 void box::lock()

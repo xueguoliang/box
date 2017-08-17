@@ -14,6 +14,12 @@ class box_event
 public:
     box_event(int type);
     int type;
+    int ref;
+
+    void add_ref();
+    void del_ref();
+
+    void* ptr;
 };
 
 class box_event_buffer: public box_event
@@ -26,6 +32,8 @@ public:
 
     box_buffer_callback cbk;
     box_buffer_callback err;
+
+    void close();
 
     vector<char> read_buf;
     vector<char> write_buf;
@@ -45,8 +53,7 @@ public:
     void set_callback(box_read_callback r, box_write_callback w);
     void close();
 
-    void add_ref();
-    void del_ref();
+
 
 public:
     int fd;
@@ -54,7 +61,7 @@ public:
     box_write_callback wcbk;
     int cbk_events;
     int events;
-    int ref;  //ref count
+
 };
 
 class box_event_timer: public box_event
@@ -66,7 +73,7 @@ public:
     uint64_t expire;  // shi ke
     int timeout;
     box_timer_callback cbk;
-    void* ptr;
+
 };
 
 
