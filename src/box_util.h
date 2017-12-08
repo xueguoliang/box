@@ -1,35 +1,38 @@
 #ifndef BOX_UTIL_H
 #define BOX_UTIL_H
 
-#include <inttypes.h>
+#include <stdarg.h>
 #include <stdio.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/time.h>
-#include <string>
-using namespace std;
 
-class box_event;
-class box_event_sock;
-class box_event_timer;
-class box_event_buffer;
+// 留下接口，方便将来修改malloc和free接口
+static void* (*__box_malloc)(size_t) = malloc;
+static void (*__box_free)(void*) = free;
 
-typedef void(*box_read_callback)(box_event_sock*);
-typedef void(*box_write_callback)(box_event_sock*);
-typedef void(*box_buffer_callback)(box_event_buffer*);
-typedef void(*box_timer_callback)(box_event_timer*);
+#define box_malloc  __box_malloc
+#define box_free        __box_free
 
-void box_set_nonblock(int fd);
-int box_create_server(uint16_t port, const char* ip = "0.0.0.0");
-uint64_t box_now();
-string box_getip(struct in_addr* addr);
+// 日志
+// printf(), perror()
+static int (*__box_printf)(const char* fmt, ...) = printf;
+static int(*__box_vsprintf)(const char* fmt, va_list ap) = vprintf;
 
-#define box_err printf
-#define box_debug printf
+static inline void __box_log(char* file, int line, const char* fmt, ...)
+{
+    __box_printf("%s, %d: ", file, line);
+
+    va_list ap;
+    va_start(ap, fmt);
+    __box_vsprintf(fmt, ap);
+    va_end(ap);
+}
+
+#define box_log(fmt, ...) __box_log(__FILE__, __LINE__, fmt,  ##__VA_ARGS__)
+
+/*
+    box_malloc  --> malloc
+    box_free  --> free
+    box_log  --> printf
+*/
+
 
 #endif // BOX_UTIL_H

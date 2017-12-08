@@ -1,76 +1,89 @@
 #ifndef BOX_H
 #define BOX_H
 
-class box_event;
-class box_event_sock;
-class box_event_timer;
-class box_event_buffer;
-class box_thread;
 
-#include <stdio.h>
-#include <pthread.h>
-#include <list>
-#include <semaphore.h>
-#include <sys/epoll.h>
+#include <signal.h>
 #include <errno.h>
-#include <unistd.h>
+#include <pthread.h>
+#include <sys/types.h>          /* See NOTES */
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdlib.h>
-
+#include <sys/types.h>
+#include <dirent.h>
+#include <unistd.h>
+ #include <sys/epoll.h>
 #include "box_util.h"
-#include "box_heap.h"
-using namespace std;
 
-/*
- * 事件监控类，监控所有的socket，如果有事件,将事件加入到消息队列 
- * */
-class box
+static inline int __box_start_server(unsigned short port, const char* ip, int backlog)
 {
-public:
-    box();
+    int server = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    int ret = bind(server, (struct sockaddr*)&addr, sizeof(addr));
+    if(ret < 0)
+    {
+        box_log("bind error\n");
+        exit(1);
+    }
 
-    // 业务函数
-    // 初始化环境
-    void init(int thread_count);
-    // 把socket加入到epoll
-    void add_socket(int fd, box_read_callback rcbk, box_write_callback wcbk = NULL);
-    // 把socket加入到epoll
-    void epoll_add(box_event_sock* ev);
-    void epoll_add(box_event_buffer* ev);
-    // 监听socket
-    void run();
-    //
-    void add_timer(int timeout, box_timer_callback cbk, void* ptr = NULL);
-    box_event_buffer* add_buffer(int fd, box_buffer_callback cbk,box_buffer_callback err, int watermark);
+    listen(server, backlog);
+    return server;
+}
 
-    // 一些辅助函数
-    void lock();
-    void unlock();
+static inline void box_set_nonblock(int fd)
+{
+    int flag = fcntl(fd, F_GETFL);
+    flag |= O_NONBLOCK;
+    fcntl(fd, F_SETFL, flag);
+}
 
-    void add_event(box_event*);
-    box_event* get_event(); // called by thread
-
-    void wait_event();
-    uint64_t get_wait_time();
-
-private:
+typedef struct box
+{
     int epollfd;
-    pthread_mutex_t mutex;
-    sem_t sem;
+} box;
 
-    list<box_thread*> threads;
-    list<box_event*> evs;
-
-    heap_t* timers;
-};
-
-class box_autolock
+typedef struct box_channel
 {
-public:
-    box_autolock(box* b);
-    ~box_autolock();
+    int sock;
+    void (*cb)(struct box_channel* c);
 
-private:
-    box* b;
-};
+    void* session;
+} box_channel;
+
+/* 什么时候算对方说完了 */
+typedef struct box_session
+{
+    char buf[8192];
+    int pkt_len; // 报文有多长
+    int read_len; // 已经读的数据有多长
+    void(*cb)(struct box_session*);
+    box_channel* c ;
+} box_session;
+
+box_session* box_session_create(box_channel* c, int pkt_len, void(*cb)(box_session*));
+void box_session_destroy(box_session*);
+
+void box_init();
+void box_fini();
+void box_run();
+void box_add(box_channel* c);
+void box_add_socket(int sock, void(*cb)(box_channel*c));
+
+box_channel* box_channel_create(int fd, void(*cb)(box_channel*c));
+void box_channel_destroy(box_channel* c);
+
+void box_start_server(unsigned short port,
+                      const char* ip,
+                      int backlog,
+                      void(*cb)(box_channel*));
 
 #endif // BOX_H
