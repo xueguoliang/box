@@ -1,0 +1,7 @@
+*.d
+*.o
+*.so
+*.bin
+*.autosave
+*.user
+tags
